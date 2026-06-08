@@ -17,6 +17,7 @@ export default function App() {
   const [scannedStudent, setScannedStudent] = useState(null);
   const [scanTime, setScanTime] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('Present');
+  const [isScanningActive, setIsScanningActive] = useState(true);
   
   // Navigation State: 'scanner', 'history', 'manageStudents', 'enrollStudent'
   const [currentScreen, setCurrentScreen] = useState('scanner');
@@ -70,14 +71,20 @@ export default function App() {
     const student = enrolledStudents.find(s => s.lrn === scannedLrn);
     if (!student) return;
 
+    // Pause scanning immediately to prevent duplicate triggers
+    setIsScanningActive(false);
+
     // Check if already logged today
     const isAlreadyCheckedInToday = masterLog.some(
       log => log.id === student.lrn && log.date === getTodayDate()
     );
     
     if (isAlreadyCheckedInToday) {
-      Alert.alert("Already Checked In", `${getFormattedName(student)} is already logged for today.`);
-      setTimeout(() => setScannedStudent(null), 2000); 
+      Alert.alert(
+        "Already Checked In", 
+        `${getFormattedName(student)} is already logged for today.`,
+        [{ text: "OK", onPress: () => setIsScanningActive(true) }]
+      );
       return;
     }
 
@@ -103,6 +110,7 @@ export default function App() {
     
     setScannedStudent(null);
     setScanTime(null);
+    setIsScanningActive(true); // Resume scanning
   };
 
   // --- ENROLLMENT LOGIC ---
@@ -339,7 +347,7 @@ export default function App() {
     <View style={styles.container}>
       <CameraView
         style={styles.camera}
-        onBarcodeScanned={scannedStudent ? undefined : handleBarCodeScanned}
+        onBarcodeScanned={(!isScanningActive || scannedStudent) ? undefined : handleBarCodeScanned}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
       >
         <View style={styles.overlay}>
