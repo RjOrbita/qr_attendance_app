@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "classroom-scanner",
+    "slug": "classroom-scanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.roland.classroomscanner",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow the app to use the camera to scan student QR codes for attendance."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "db5b8115-4021-42de-8d1f-a72b3c355a34"
+      }
+    }
+  }
+}
