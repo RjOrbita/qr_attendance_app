@@ -21,6 +21,12 @@ export default function App() {
   // Navigation State: 'scanner', 'history', 'manageStudents', 'enrollStudent'
   const [currentScreen, setCurrentScreen] = useState('scanner');
 
+  // History Screen States
+  const [historyMode, setHistoryMode] = useState('byDate'); // 'byDate' | 'byStudent'
+  const [historyDateIndex, setHistoryDateIndex] = useState(0);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [selectedHistoryStudent, setSelectedHistoryStudent] = useState(null);
+
   // Enrollment Form State
   const [enrollForm, setEnrollForm] = useState({
     lrn: '', lastName: '', firstName: '', middleInitial: '', suffix: '', phone: '', photoUri: null
@@ -213,45 +219,256 @@ export default function App() {
   }
 
   if (currentScreen === 'history') {
+    // --- DATA HELPERS ---
+    const uniqueDates = [...new Set(masterLog.map(l => l.date))].sort((a, b) => b.localeCompare(a));
+    const currentDate = uniqueDates[historyDateIndex];
+    const recordsForDate = masterLog.filter(l => l.date === currentDate);
+
+    const filteredStudents = studentSearchQuery.trim()
+      ? enrolledStudents.filter(s =>
+          getFormattedName(s).toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+          s.lrn.includes(studentSearchQuery)
+        )
+      : enrolledStudents;
+
+    const getStudentWeekRecords = (student) => {
+      const last7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        last7Days.push(d.toISOString().split('T')[0]);
+      }
+      return last7Days.map(date => ({
+        date,
+        record: masterLog.find(l => l.id === student.lrn && l.date === date) || null
+      }));
+    };
+
     return (
       <View style={styles.container}>
+        {/* ── HEADER ── */}
         <View style={styles.headerArea}>
-          <TouchableOpacity onPress={() => setCurrentScreen('scanner')} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back to Scanner</Text>
+          <TouchableOpacity
+            onPress={() => {
+              if (selectedHistoryStudent) {
+                setSelectedHistoryStudent(null);
+              } else {
+                setCurrentScreen('scanner');
+              }
+            }}
+            style={styles.backButton}
+          >
+            <Text style={styles.backButtonText}>
+              {selectedHistoryStudent ? '← Back to Search' : '← Back to Scanner'}
+            </Text>
           </TouchableOpacity>
-          <Text style={styles.titleText}>Attendance Log</Text>
-        </View>
+          <Text style={styles.titleText}>
+            {selectedHistoryStudent ? getFormattedName(selectedHistoryStudent) : 'Attendance Log'}
+          </Text>
 
-        <FlatList 
-          data={[...masterLog].reverse()} 
-          keyExtractor={(item) => item.key}
-          contentContainerStyle={styles.listContainer}
-          renderItem={({item}) => (
-            <View style={styles.listItem}>
-              <View>
-                <Text style={styles.listName}>{item.name}</Text>
-                <Text style={styles.listSubText}>LRN: {item.id}</Text>
-                <Text style={[styles.statusBadge, item.status === 'Tardy' ? styles.statusTardy : styles.statusPresent]}>
-                  {item.status || 'Present'}
-                </Text>
-              </View>
-              <View style={{alignItems: 'flex-end'}}>
-                <Text style={styles.listDate}>{item.date}</Text>
-                <Text style={styles.listTime}>{item.time}</Text>
-              </View>
+          {/* Mode Toggle - only when not in student detail */}
+          {!selectedHistoryStudent && (
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[styles.modeBtn, historyMode === 'byDate' && styles.modeBtnActive]}
+                onPress={() => setHistoryMode('byDate')}
+              >
+                <Text style={[styles.modeBtnText, historyMode === 'byDate' && styles.modeBtnActiveText]}>📅 By Date</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeBtn, historyMode === 'byStudent' && styles.modeBtnActive]}
+                onPress={() => setHistoryMode('byStudent')}
+              >
+                <Text style={[styles.modeBtnText, historyMode === 'byStudent' && styles.modeBtnActiveText]}>🔍 By Student</Text>
+              </TouchableOpacity>
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No students scanned yet.</Text>}
-        />
+        </View>
 
-        <View style={styles.bottomBar}>
-           <TouchableOpacity style={styles.exportButton} onPress={exportWeeklyAttendance}>
+        {/* ── BY DATE MODE ── */}
+        {!selectedHistoryStudent && historyMode === 'byDate' && (
+          uniqueDates.length === 0
+            ? <Text style={styles.emptyText}>No attendance records yet.</Text>
+            : (
+              <>
+                {/* Date paginator */}
+                <View style={styles.datePaginator}>
+                  <TouchableOpacity
+                    style={[styles.pageArrow, historyDateIndex >= uniqueDates.length - 1 && styles.pageArrowDisabled]}
+                    onPress={() => setHistoryDateIndex(i => Math.min(i + 1, uniqueDates.length - 1))}
+                    disabled={historyDateIndex >= uniqueDates.length - 1}
+                  >
+                    <Text style={styles.pageArrowText}>‹</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.dateDisplay}>
+                    <Text style={styles.dateDisplayText}>{currentDate}</Text>
+                    <Text style={styles.dateRecordCount}>
+                      {recordsForDate.length} student{recordsForDate.length !== 1 ? 's' : ''} recorded
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.pageArrow, historyDateIndex === 0 && styles.pageArrowDisabled]}
+                    onPress={() => setHistoryDateIndex(i => Math.max(i - 1, 0))}
+                    disabled={historyDateIndex === 0}
+                  >
+                    <Text style={styles.pageArrowText}>›</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.pageIndicator}>
+                  Page {historyDateIndex + 1} of {uniqueDates.length}
+                </Text>
+
+                <FlatList
+                  data={recordsForDate}
+                  keyExtractor={(item) => item.key}
+                  contentContainerStyle={styles.listContainer}
+                  renderItem={({item}) => (
+                    <View style={styles.listItem}>
+                      <View>
+                        <Text style={styles.listName}>{item.name}</Text>
+                        <Text style={styles.listSubText}>LRN: {item.id}</Text>
+                        <Text style={[styles.statusBadge, item.status === 'Tardy' ? styles.statusTardy : styles.statusPresent]}>
+                          {item.status || 'Present'}
+                        </Text>
+                      </View>
+                      <Text style={styles.listTime}>{item.time}</Text>
+                    </View>
+                  )}
+                  ListEmptyComponent={<Text style={styles.emptyText}>No records for this date.</Text>}
+                />
+              </>
+            )
+        )}
+
+        {/* ── BY STUDENT MODE ── */}
+        {!selectedHistoryStudent && historyMode === 'byStudent' && (
+          <>
+            <View style={styles.searchBarContainer}>
+              <TextInput
+                style={styles.searchBar}
+                placeholder="🔍  Search by name or LRN..."
+                placeholderTextColor="#64748B"
+                value={studentSearchQuery}
+                onChangeText={setStudentSearchQuery}
+                clearButtonMode="while-editing"
+              />
+            </View>
+            <FlatList
+              data={filteredStudents}
+              keyExtractor={(item) => item.lrn}
+              contentContainerStyle={styles.listContainer}
+              renderItem={({item}) => {
+                const count = masterLog.filter(l => l.id === item.lrn).length;
+                return (
+                  <TouchableOpacity style={styles.studentCard} onPress={() => setSelectedHistoryStudent(item)}>
+                    <Image source={{ uri: item.photoUri }} style={styles.studentThumb} />
+                    <View style={styles.studentInfo}>
+                      <Text style={styles.studentNameText}>{getFormattedName(item)}</Text>
+                      <Text style={styles.studentLrnText}>LRN: {item.lrn}</Text>
+                      <Text style={[styles.studentLrnText, {color: '#14B8A6', marginTop: 2}]}>
+                        {count} record{count !== 1 ? 's' : ''} total
+                      </Text>
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.emptyText}>No students found.</Text>}
+            />
+          </>
+        )}
+
+        {/* ── STUDENT DETAIL (weekly view) ── */}
+        {selectedHistoryStudent && (() => {
+          const weekRecords = getStudentWeekRecords(selectedHistoryStudent);
+          const allLogs = masterLog.filter(l => l.id === selectedHistoryStudent.lrn);
+          const presentCount = allLogs.filter(l => (l.status || 'Present') !== 'Tardy').length;
+          const tardyCount  = allLogs.filter(l => l.status === 'Tardy').length;
+
+          return (
+            <ScrollView contentContainerStyle={[styles.listContainer, {paddingBottom: 40}]}>
+              {/* Profile card */}
+              <View style={styles.studentProfileCard}>
+                <Image source={{ uri: selectedHistoryStudent.photoUri }} style={styles.studentProfilePhoto} />
+                <Text style={styles.studentProfileName}>{getFormattedName(selectedHistoryStudent)}</Text>
+                <Text style={styles.studentProfileLrn}>LRN: {selectedHistoryStudent.lrn}</Text>
+                <View style={styles.attendanceSummaryRow}>
+                  <View style={styles.summaryBadge}>
+                    <Text style={styles.summaryBadgeNum}>{presentCount}</Text>
+                    <Text style={styles.summaryBadgeLabel}>Present</Text>
+                  </View>
+                  <View style={[styles.summaryBadge, {borderColor: '#F59E0B'}]}>
+                    <Text style={[styles.summaryBadgeNum, {color: '#F59E0B'}]}>{tardyCount}</Text>
+                    <Text style={styles.summaryBadgeLabel}>Tardy</Text>
+                  </View>
+                  <View style={[styles.summaryBadge, {borderColor: '#3B82F6'}]}>
+                    <Text style={[styles.summaryBadgeNum, {color: '#3B82F6'}]}>{allLogs.length}</Text>
+                    <Text style={styles.summaryBadgeLabel}>Total</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* This week */}
+              <Text style={styles.sectionLabel}>This Week</Text>
+              {weekRecords.map(({date, record}) => (
+                <View key={date} style={styles.weekRow}>
+                  <View style={styles.weekDateBlock}>
+                    <Text style={styles.weekDayText}>
+                      {new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
+                    </Text>
+                    <Text style={styles.weekDateText}>{date}</Text>
+                  </View>
+                  {record ? (
+                    <View style={styles.weekRecordBlock}>
+                      <Text style={[styles.weekStatusDot, record.status === 'Tardy' ? {color:'#F59E0B'} : {color:'#14B8A6'}]}>●</Text>
+                      <Text style={[styles.weekStatusText, record.status === 'Tardy' ? {color:'#F59E0B'} : {color:'#14B8A6'}]}>
+                        {record.status || 'Present'}
+                      </Text>
+                      <Text style={styles.weekTimeText}>{record.time}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.weekRecordBlock}>
+                      <Text style={{color:'#334155', fontSize:18}}>●</Text>
+                      <Text style={{color:'#475569', fontSize:13, marginLeft:6}}>No record</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+
+              {/* All records */}
+              <Text style={[styles.sectionLabel, {marginTop: 24}]}>All Records</Text>
+              {allLogs.length === 0
+                ? <Text style={styles.emptyText}>No records for this student.</Text>
+                : [...allLogs].reverse().map(log => (
+                  <View key={log.key} style={styles.listItem}>
+                    <View>
+                      <Text style={styles.listDate}>{log.date}</Text>
+                      <Text style={[styles.statusBadge, log.status === 'Tardy' ? styles.statusTardy : styles.statusPresent]}>
+                        {log.status || 'Present'}
+                      </Text>
+                    </View>
+                    <Text style={styles.listTime}>{log.time}</Text>
+                  </View>
+                ))
+              }
+            </ScrollView>
+          );
+        })()}
+
+        {/* Bottom action bar */}
+        {!selectedHistoryStudent && (
+          <View style={styles.bottomBar}>
+            <TouchableOpacity style={styles.exportButton} onPress={exportWeeklyAttendance}>
               <Text style={styles.exportButtonText}>📤 Export Log</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.clearButton} onPress={clearWeeklyHistory}>
               <Text style={styles.clearButtonText}>🗑️ Clear</Text>
             </TouchableOpacity>
-        </View>
+          </View>
+        )}
       </View>
     );
   }
@@ -473,5 +690,50 @@ const styles = StyleSheet.create({
   saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
 
   primaryButton: { backgroundColor: '#14B8A6', paddingVertical: 15, paddingHorizontal: 40, borderRadius: 25 },
-  primaryButtonText: { color: '#0F172A', fontWeight: 'bold', fontSize: 16 }
+  primaryButtonText: { color: '#0F172A', fontWeight: 'bold', fontSize: 16 },
+
+  // ── History: Mode Toggle ──
+  modeToggle: { flexDirection: 'row', marginTop: 14, backgroundColor: '#0F172A', borderRadius: 12, padding: 4 },
+  modeBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
+  modeBtnActive: { backgroundColor: '#1E3A5F' },
+  modeBtnText: { color: '#64748B', fontWeight: '600', fontSize: 14 },
+  modeBtnActiveText: { color: '#14B8A6' },
+
+  // ── History: Date Paginator ──
+  datePaginator: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#1E293B', borderBottomWidth: 1, borderBottomColor: '#334155' },
+  pageArrow: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
+  pageArrowDisabled: { opacity: 0.3 },
+  pageArrowText: { color: '#14B8A6', fontSize: 28, fontWeight: 'bold', lineHeight: 32 },
+  dateDisplay: { alignItems: 'center' },
+  dateDisplayText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  dateRecordCount: { color: '#14B8A6', fontSize: 13, marginTop: 2 },
+  pageIndicator: { textAlign: 'center', color: '#475569', fontSize: 12, paddingVertical: 6 },
+
+  // ── History: Search ──
+  searchBarContainer: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#1E293B', borderBottomWidth: 1, borderBottomColor: '#334155' },
+  searchBar: { backgroundColor: '#0F172A', color: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, fontSize: 15, borderWidth: 1, borderColor: '#334155' },
+  chevron: { color: '#14B8A6', fontSize: 24, fontWeight: 'bold' },
+
+  // ── History: Student Profile Card ──
+  studentProfileCard: { backgroundColor: '#1E293B', borderRadius: 20, alignItems: 'center', padding: 24, marginBottom: 20, borderWidth: 1, borderColor: '#334155' },
+  studentProfilePhoto: { width: 90, height: 90, borderRadius: 45, marginBottom: 12, borderWidth: 3, borderColor: '#14B8A6' },
+  studentProfileName: { color: '#FFF', fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
+  studentProfileLrn: { color: '#94A3B8', fontSize: 14, marginTop: 4 },
+  attendanceSummaryRow: { flexDirection: 'row', marginTop: 16, justifyContent: 'space-around', width: '100%' },
+  summaryBadge: { alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#14B8A6', minWidth: 80 },
+  summaryBadgeNum: { color: '#14B8A6', fontSize: 22, fontWeight: 'bold' },
+  summaryBadgeLabel: { color: '#94A3B8', fontSize: 11, marginTop: 2 },
+
+  // ── History: Section Label ──
+  sectionLabel: { color: '#64748B', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+
+  // ── History: Weekly Row ──
+  weekRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E293B', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#334155' },
+  weekDateBlock: { width: 90 },
+  weekDayText: { color: '#94A3B8', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
+  weekDateText: { color: '#CBD5E1', fontSize: 13, marginTop: 2 },
+  weekRecordBlock: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  weekStatusDot: { fontSize: 18, marginRight: 6 },
+  weekStatusText: { fontSize: 14, fontWeight: '600' },
+  weekTimeText: { color: '#64748B', fontSize: 12, marginLeft: 8 }
 });
