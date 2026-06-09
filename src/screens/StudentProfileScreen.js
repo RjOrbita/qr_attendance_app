@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { globalStyles as styles } from '../theme/styles';
@@ -31,6 +32,7 @@ const formatHistoryDate = (dateStr) => {
 export default function StudentProfileScreen({ route, navigation }) {
   const { lrn, initialTab } = route.params;
   const { enrolledStudents, updateStudentProfile, masterLog, nonSchoolDays } = useContext(AppContext);
+  const insets = useSafeAreaInsets();
   
   const [student, setStudent] = useState(null);
   const [activeTab, setActiveTab] = useState(initialTab || 'Information');
@@ -445,7 +447,7 @@ export default function StudentProfileScreen({ route, navigation }) {
 
       {activeTab === 'Information' ? (
         <View style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.infoSection} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={[styles.infoSection, { paddingBottom: 100 + insets.bottom }]} keyboardShouldPersistTaps="handled">
             {renderSexField()}
             {renderBirthdateField()}
             {renderInfoField('Address', 'address')}
@@ -455,11 +457,11 @@ export default function StudentProfileScreen({ route, navigation }) {
           </ScrollView>
           
           {isEditing ? (
-            <TouchableOpacity style={styles.fabSaveButton} onPress={handleSave}>
+            <TouchableOpacity style={[styles.fabSaveButton, { bottom: 30 + insets.bottom }]} onPress={handleSave}>
               <Text style={styles.fabSaveButtonText}>Save Profile</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.fabButton} onPress={() => setIsEditing(true)}>
+            <TouchableOpacity style={[styles.fabButton, { bottom: 30 + insets.bottom }]} onPress={() => setIsEditing(true)}>
               <Text style={styles.fabButtonText}>✎</Text>
             </TouchableOpacity>
           )}
@@ -475,7 +477,7 @@ export default function StudentProfileScreen({ route, navigation }) {
                 : []
             }
             keyExtractor={(item) => item.key}
-            contentContainerStyle={[styles.infoSection, { paddingTop: 15 }]}
+            contentContainerStyle={[styles.infoSection, { paddingTop: 15, paddingBottom: 100 + insets.bottom }]}
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={5}

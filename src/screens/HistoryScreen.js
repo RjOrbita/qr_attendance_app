@@ -1,5 +1,6 @@
 import React, { useState, useContext, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Alert, Platform, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { globalStyles as styles } from '../theme/styles';
 import { getFormattedName } from '../utils/helpers';
@@ -9,6 +10,7 @@ import { AppContext } from '../context/AppContext';
 
 export default function HistoryScreen({ navigation }) {
   const { masterLog, setMasterLog, enrolledStudents, nonSchoolDays, setNonSchoolDays } = useContext(AppContext);
+  const insets = useSafeAreaInsets();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -245,7 +247,7 @@ export default function HistoryScreen({ navigation }) {
       <FlatList
         data={listData}
         keyExtractor={(item) => item.lrn}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[styles.listContainer, { paddingBottom: 100 + insets.bottom }]}
         initialNumToRender={10}
         maxToRenderPerBatch={10}
         windowSize={5}
@@ -294,7 +296,7 @@ export default function HistoryScreen({ navigation }) {
       />
 
       {/* ── BOTTOM BAR ── */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
           <Text style={styles.exportButtonText}>📤 Export Log</Text>
         </TouchableOpacity>

@@ -4,6 +4,8 @@ import { View } from 'react-native';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 import { AppProvider } from './src/context/AppContext';
 import ScannerScreen from './src/screens/ScannerScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
@@ -27,9 +29,10 @@ const CustomDarkTheme = {
 
 export default function App() {
   return (
-    <AppProvider>
-      <View style={{ flex: 1, backgroundColor: '#0F172A' }}>
-        <NavigationContainer theme={CustomDarkTheme}>
+    <SafeAreaProvider>
+      <AppProvider>
+        <View style={{ flex: 1, backgroundColor: '#0F172A' }}>
+          <NavigationContainer theme={CustomDarkTheme}>
           <Stack.Navigator 
             initialRouteName="Scanner"
             screenOptions={{
@@ -48,5 +51,6 @@ export default function App() {
         </NavigationContainer>
       </View>
     </AppProvider>
+    </SafeAreaProvider>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Image, Alert, TextInput, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { globalStyles as styles } from '../theme/styles';
@@ -8,6 +9,7 @@ import { AppContext } from '../context/AppContext';
 
 export default function ManageStudentsScreen({ navigation }) {
   const { enrolledStudents, setEnrolledStudents } = useContext(AppContext);
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredStudents = enrolledStudents
@@ -234,7 +236,7 @@ export default function ManageStudentsScreen({ navigation }) {
       <FlatList 
         data={filteredStudents} 
         keyExtractor={(item) => item.lrn}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[styles.listContainer, { paddingBottom: 100 + insets.bottom }]}
         initialNumToRender={10}
         maxToRenderPerBatch={10}
         windowSize={5}
@@ -269,7 +271,7 @@ export default function ManageStudentsScreen({ navigation }) {
         }
       />
 
-      <View style={[styles.bottomBar, { flexDirection: 'row' }]}>
+      <View style={[styles.bottomBar, { flexDirection: 'row', paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity 
           style={[styles.enrollButton, { flex: 0.55, marginRight: 10 }]} 
           onPress={() => navigation.navigate('EnrollStudent')}
