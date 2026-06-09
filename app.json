@@ -22,7 +22,8 @@
         {
           "cameraPermission": "Allow the app to use the camera to scan student QR codes for attendance."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

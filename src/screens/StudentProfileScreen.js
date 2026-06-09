@@ -1,8 +1,10 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { globalStyles as styles } from '../theme/styles';
 import { AppContext } from '../context/AppContext';
-import { getFormattedName } from '../utils/helpers';
+import { getFormattedName, getInitials } from '../utils/helpers';
 
 const formatMonthYear = (monthStr) => {
   if (!monthStr) return '';
@@ -27,11 +29,11 @@ const formatHistoryDate = (dateStr) => {
 };
 
 export default function StudentProfileScreen({ route, navigation }) {
-  const { lrn } = route.params;
+  const { lrn, initialTab } = route.params;
   const { enrolledStudents, updateStudentProfile, masterLog } = useContext(AppContext);
   
   const [student, setStudent] = useState(null);
-  const [activeTab, setActiveTab] = useState('Information');
+  const [activeTab, setActiveTab] = useState(initialTab || 'Information');
   const [isEditing, setIsEditing] = useState(false);
   const [sexDropdownOpen, setSexDropdownOpen] = useState(false);
   const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
@@ -43,7 +45,8 @@ export default function StudentProfileScreen({ route, navigation }) {
     birthdate: '',
     address: '',
     fatherName: '',
-    motherMaidenName: ''
+    motherMaidenName: '',
+    photoUri: null
   });
 
   useEffect(() => {
@@ -55,7 +58,8 @@ export default function StudentProfileScreen({ route, navigation }) {
         birthdate: found.birthdate || '',
         address: found.address || '',
         fatherName: found.fatherName || '',
-        motherMaidenName: found.motherMaidenName || ''
+        motherMaidenName: found.motherMaidenName || '',
+        photoUri: found.photoUri || null
       });
 
       // Also get history to initialize month selector
@@ -66,6 +70,20 @@ export default function StudentProfileScreen({ route, navigation }) {
       }
     }
   }, [enrolledStudents, lrn, masterLog]);
+
+  const pickImage = async () => {
+    if (!isEditing) return;
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setForm({ ...form, photoUri: result.assets[0].uri });
+    }
+  };
 
   const handleBirthdateChange = (text) => {
     const clean = text.replace(/[^0-9]/g, '');
@@ -125,8 +143,41 @@ export default function StudentProfileScreen({ route, navigation }) {
       );
       return;
     }
-    await updateStudentProfile(lrn, form);
-    setIsEditing(false);
+
+    try {
+      let finalPhotoUri = form.photoUri;
+
+      // If photo changed
+      if (form.photoUri !== student.photoUri) {
+        if (form.photoUri) {
+          const filename = form.photoUri.split('/').pop();
+          const persistentPhotoUri = `${FileSystem.documentDirectory}${filename}`;
+          await FileSystem.copyAsync({
+            from: form.photoUri,
+            to: persistentPhotoUri
+          });
+          finalPhotoUri = persistentPhotoUri;
+        }
+
+        // Clean up previous photo file if it exists
+        if (student.photoUri) {
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(student.photoUri);
+            if (fileInfo.exists) {
+              await FileSystem.deleteAsync(student.photoUri, { idempotent: true });
+            }
+          } catch (err) {
+            console.error("Failed to delete old photo file:", err);
+          }
+        }
+      }
+
+      await updateStudentProfile(lrn, { ...form, photoUri: finalPhotoUri });
+      setIsEditing(false);
+    } catch (err) {
+      Alert.alert("Error", "Failed to save student profile photo.");
+      console.error(err);
+    }
   };
 
   if (!student) return null;
@@ -322,7 +373,48 @@ export default function StudentProfileScreen({ route, navigation }) {
       </View>
 
       <View style={styles.profileHeaderContainer}>
-        <Image source={{ uri: student.photoUri }} style={styles.profileLargeAvatar} />
+        <TouchableOpacity 
+          onPress={pickImage} 
+          disabled={!isEditing} 
+          style={{ position: 'relative', alignItems: 'center' }}
+        >
+          {isEditing ? (
+            form.photoUri ? (
+              <Image source={{ uri: form.photoUri }} style={styles.profileLargeAvatar} />
+            ) : (
+              <View style={[styles.profileLargeAvatar, { backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: '#14B8A6', fontSize: 36, fontWeight: 'bold' }}>
+                  {getInitials(student)}
+                </Text>
+              </View>
+            )
+          ) : (
+            student.photoUri ? (
+              <Image source={{ uri: student.photoUri }} style={styles.profileLargeAvatar} />
+            ) : (
+              <View style={[styles.profileLargeAvatar, { backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: '#14B8A6', fontSize: 36, fontWeight: 'bold' }}>
+                  {getInitials(student)}
+                </Text>
+              </View>
+            )
+          )}
+          
+          {isEditing && (
+            <View style={{
+              position: 'absolute',
+              bottom: 15,
+              backgroundColor: 'rgba(15, 23, 42, 0.8)',
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: '#334155'
+            }}>
+              <Text style={{ color: '#14B8A6', fontSize: 11, fontWeight: 'bold' }}>📷 CHANGE</Text>
+            </View>
+          )}
+        </TouchableOpacity>
         <Text style={styles.profileNameLabel}>{getFormattedName(student)}</Text>
         <Text style={styles.profileLrnLabel}>LRN: {student.lrn}</Text>
         <Text style={styles.profileContactLabel}>Emergency: {student.phone}</Text>

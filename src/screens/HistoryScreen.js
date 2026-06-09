@@ -1,5 +1,6 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, FlatList, TextInput, Image, ScrollView, Alert } from 'react-native';
+import React, { useState, useContext, useMemo } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Alert, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { globalStyles as styles } from '../theme/styles';
 import { getFormattedName } from '../utils/helpers';
 import { exportWeeklyAttendance } from '../services/exportService';
@@ -8,35 +9,61 @@ import { AppContext } from '../context/AppContext';
 
 export default function HistoryScreen({ navigation }) {
   const { masterLog, setMasterLog, enrolledStudents } = useContext(AppContext);
-  const [historyMode, setHistoryMode] = useState('byDate'); // 'byDate' | 'byStudent'
-  const [historyDateIndex, setHistoryDateIndex] = useState(0);
-  const [studentSearchQuery, setStudentSearchQuery] = useState('');
-  const [selectedHistoryStudent, setSelectedHistoryStudent] = useState(null);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // --- DATA HELPERS ---
-  const uniqueDates = [...new Set(masterLog.map(l => l.date))].sort((a, b) => b.localeCompare(a));
-  const currentDate = uniqueDates[historyDateIndex];
-  const recordsForDate = masterLog.filter(l => l.date === currentDate);
-
-  const filteredStudents = studentSearchQuery.trim()
-    ? enrolledStudents.filter(s =>
-        getFormattedName(s).toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
-        s.lrn.includes(studentSearchQuery)
-      )
-    : enrolledStudents;
-
-  const getStudentWeekRecords = (student) => {
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      last7Days.push(d.toISOString().split('T')[0]);
-    }
-    return last7Days.map(date => ({
-      date,
-      record: masterLog.find(l => l.id === student.lrn && l.date === date) || null
-    }));
+  // Helper to format date like Jun 09, 2026
+  const formatDateHeader = (d) => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[d.getMonth()];
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${month} ${day}, ${year}`;
   };
+
+  const formatDayOfWeek = (d) => {
+    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return weekdays[d.getDay()];
+  };
+
+  // Helper to get ISO date string (YYYY-MM-DD) for matching with masterLog
+  const getIsoDateString = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const isoCurrentDate = getIsoDateString(currentDate);
+
+  const incrementDate = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + 1);
+    setCurrentDate(newDate);
+  };
+
+  const decrementDate = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() - 1);
+    setCurrentDate(newDate);
+  };
+
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setCurrentDate(selectedDate);
+    }
+  };
+
+  const listData = useMemo(() => {
+    return enrolledStudents.map(student => {
+      const record = masterLog.find(l => l.id === student.lrn && l.date === isoCurrentDate);
+      return {
+        ...student,
+        attendanceRecord: record || null
+      };
+    });
+  }, [enrolledStudents, masterLog, isoCurrentDate]);
 
   const handleExport = () => {
     exportWeeklyAttendance(masterLog);
@@ -57,227 +84,80 @@ export default function HistoryScreen({ navigation }) {
     <View style={styles.container}>
       {/* ── HEADER ── */}
       <View style={styles.headerArea}>
-        <TouchableOpacity
-          onPress={() => {
-            if (selectedHistoryStudent) {
-              setSelectedHistoryStudent(null);
-            } else {
-              navigation.goBack();
-            }
-          }}
-          style={styles.backButton}
-        >
-          <Text style={styles.backButtonText}>
-            {selectedHistoryStudent ? '< Back to Search' : '< Back to Scanner'}
-          </Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>{'< Back to Scanner'}</Text>
         </TouchableOpacity>
-        <Text style={styles.titleText}>
-          {selectedHistoryStudent ? getFormattedName(selectedHistoryStudent) : 'Attendance Log'}
-        </Text>
-
-        {/* Mode Toggle - only when not in student detail */}
-        {!selectedHistoryStudent && (
-          <View style={styles.modeToggle}>
-            <TouchableOpacity
-              style={[styles.modeBtn, historyMode === 'byDate' && styles.modeBtnActive]}
-              onPress={() => setHistoryMode('byDate')}
-            >
-              <Text style={[styles.modeBtnText, historyMode === 'byDate' && styles.modeBtnActiveText]}>📅 By Date</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeBtn, historyMode === 'byStudent' && styles.modeBtnActive]}
-              onPress={() => setHistoryMode('byStudent')}
-            >
-              <Text style={[styles.modeBtnText, historyMode === 'byStudent' && styles.modeBtnActiveText]}>🔍 By Student</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <Text style={styles.titleText}>Attendance Log</Text>
       </View>
 
-      {/* ── BY DATE MODE ── */}
-      {!selectedHistoryStudent && historyMode === 'byDate' && (
-        uniqueDates.length === 0
-          ? <Text style={styles.emptyText}>No attendance records yet.</Text>
-          : (
-            <>
-              {/* Date paginator */}
-              <View style={styles.datePaginator}>
-                <TouchableOpacity
-                  style={[styles.pageArrow, historyDateIndex >= uniqueDates.length - 1 && styles.pageArrowDisabled]}
-                  onPress={() => setHistoryDateIndex(i => Math.min(i + 1, uniqueDates.length - 1))}
-                  disabled={historyDateIndex >= uniqueDates.length - 1}
-                >
-                  <Text style={styles.pageArrowText}>‹</Text>
-                </TouchableOpacity>
+      {/* ── DATE SELECTOR ── */}
+      <View style={styles.datePaginator}>
+        <TouchableOpacity style={styles.pageArrow} onPress={decrementDate}>
+          <Text style={styles.pageArrowText}>‹</Text>
+        </TouchableOpacity>
 
-                <View style={styles.dateDisplay}>
-                  <Text style={styles.dateDisplayText}>{currentDate}</Text>
-                  <Text style={styles.dateRecordCount}>
-                    {recordsForDate.length} student{recordsForDate.length !== 1 ? 's' : ''} recorded
-                  </Text>
-                </View>
+        <TouchableOpacity style={styles.dateDisplay} onPress={() => setShowDatePicker(true)}>
+          <Text style={styles.dateDisplayText}>{formatDateHeader(currentDate)}</Text>
+          <Text style={styles.dateRecordCount}>{formatDayOfWeek(currentDate)}</Text>
+        </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.pageArrow, historyDateIndex === 0 && styles.pageArrowDisabled]}
-                  onPress={() => setHistoryDateIndex(i => Math.max(i - 1, 0))}
-                  disabled={historyDateIndex === 0}
-                >
-                  <Text style={styles.pageArrowText}>›</Text>
-                </TouchableOpacity>
-              </View>
+        <TouchableOpacity style={styles.pageArrow} onPress={incrementDate}>
+          <Text style={styles.pageArrowText}>›</Text>
+        </TouchableOpacity>
+      </View>
 
-              <Text style={styles.pageIndicator}>
-                Page {historyDateIndex + 1} of {uniqueDates.length}
-              </Text>
-
-              <FlatList
-                data={recordsForDate}
-                keyExtractor={(item) => item.key}
-                contentContainerStyle={styles.listContainer}
-                renderItem={({item}) => (
-                  <View style={styles.listItem}>
-                    <View>
-                      <Text style={styles.listName}>{item.name}</Text>
-                      <Text style={styles.listSubText}>LRN: {item.id}</Text>
-                      <Text style={[styles.statusBadge, item.status === 'Tardy' ? styles.statusTardy : styles.statusPresent]}>
-                        {item.status || 'Present'}
-                      </Text>
-                    </View>
-                    <Text style={styles.listTime}>{item.time}</Text>
-                  </View>
-                )}
-                ListEmptyComponent={<Text style={styles.emptyText}>No records for this date.</Text>}
-              />
-            </>
-          )
+      {showDatePicker && (
+        <DateTimePicker
+          value={currentDate}
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+        />
       )}
 
-      {/* ── BY STUDENT MODE ── */}
-      {!selectedHistoryStudent && historyMode === 'byStudent' && (
-        <>
-          <View style={styles.searchBarContainer}>
-            <TextInput
-              style={styles.searchBar}
-              placeholder="🔍  Search by name or LRN..."
-              placeholderTextColor="#64748B"
-              value={studentSearchQuery}
-              onChangeText={setStudentSearchQuery}
-              clearButtonMode="while-editing"
-            />
-          </View>
-          <FlatList
-            data={filteredStudents}
-            keyExtractor={(item) => item.lrn}
-            contentContainerStyle={styles.listContainer}
-            renderItem={({item}) => {
-              const count = masterLog.filter(l => l.id === item.lrn).length;
-              return (
-                <TouchableOpacity style={styles.studentCard} onPress={() => setSelectedHistoryStudent(item)}>
-                  <Image source={{ uri: item.photoUri }} style={styles.studentThumb} />
-                  <View style={styles.studentInfo}>
-                    <Text style={styles.studentNameText}>{getFormattedName(item)}</Text>
-                    <Text style={styles.studentLrnText}>LRN: {item.lrn}</Text>
-                    <Text style={[styles.studentLrnText, {color: '#14B8A6', marginTop: 2}]}>
-                      {count} record{count !== 1 ? 's' : ''} total
-                    </Text>
-                  </View>
-                  <Text style={styles.chevron}>›</Text>
-                </TouchableOpacity>
-              );
-            }}
-            ListEmptyComponent={<Text style={styles.emptyText}>No students found.</Text>}
-          />
-        </>
-      )}
+      {/* ── STUDENT LIST FOR SELECTED DATE ── */}
+      <FlatList
+        data={listData}
+        keyExtractor={(item) => item.lrn}
+        contentContainerStyle={styles.listContainer}
+        renderItem={({item}) => {
+          const rec = item.attendanceRecord;
+          const status = rec ? (rec.status || 'Present') : 'Absent';
+          
+          let statusStyle = styles.statusPresent;
+          if (status === 'Tardy') statusStyle = styles.statusTardy;
+          if (status === 'Absent') statusStyle = { ...styles.statusBadge, backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)' };
 
-      {/* ── STUDENT DETAIL (weekly view) ── */}
-      {selectedHistoryStudent && (() => {
-        const weekRecords = getStudentWeekRecords(selectedHistoryStudent);
-        const allLogs = masterLog.filter(l => l.id === selectedHistoryStudent.lrn);
-        const presentCount = allLogs.filter(l => (l.status || 'Present') !== 'Tardy').length;
-        const tardyCount  = allLogs.filter(l => l.status === 'Tardy').length;
-
-        return (
-          <ScrollView contentContainerStyle={[styles.listContainer, {paddingBottom: 40}]}>
-            {/* Profile card */}
-            <View style={styles.studentProfileCard}>
-              <Image source={{ uri: selectedHistoryStudent.photoUri }} style={styles.studentProfilePhoto} />
-              <Text style={styles.studentProfileName}>{getFormattedName(selectedHistoryStudent)}</Text>
-              <Text style={styles.studentProfileLrn}>LRN: {selectedHistoryStudent.lrn}</Text>
-              <View style={styles.attendanceSummaryRow}>
-                <View style={styles.summaryBadge}>
-                  <Text style={styles.summaryBadgeNum}>{presentCount}</Text>
-                  <Text style={styles.summaryBadgeLabel}>Present</Text>
-                </View>
-                <View style={[styles.summaryBadge, {borderColor: '#F59E0B'}]}>
-                  <Text style={[styles.summaryBadgeNum, {color: '#F59E0B'}]}>{tardyCount}</Text>
-                  <Text style={styles.summaryBadgeLabel}>Tardy</Text>
-                </View>
-                <View style={[styles.summaryBadge, {borderColor: '#3B82F6'}]}>
-                  <Text style={[styles.summaryBadgeNum, {color: '#3B82F6'}]}>{allLogs.length}</Text>
-                  <Text style={styles.summaryBadgeLabel}>Total</Text>
-                </View>
+          return (
+            <TouchableOpacity 
+              style={[styles.listItem, { paddingVertical: 10, paddingHorizontal: 15, marginBottom: 8 }]}
+              onPress={() => navigation.navigate('StudentProfile', { lrn: item.lrn, initialTab: 'History' })}
+            >
+              <View style={{flex: 1}}>
+                <Text style={[styles.listName, { fontSize: 15 }]}>{getFormattedName(item)}</Text>
+                <Text style={[styles.statusBadge, statusStyle, { marginTop: 4 }]}>
+                  {status}
+                </Text>
               </View>
-            </View>
-
-            {/* This week */}
-            <Text style={styles.sectionLabel}>This Week</Text>
-            {weekRecords.map(({date, record}) => (
-              <View key={date} style={styles.weekRow}>
-                <View style={styles.weekDateBlock}>
-                  <Text style={styles.weekDayText}>
-                    {new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
-                  </Text>
-                  <Text style={styles.weekDateText}>{date}</Text>
-                </View>
-                {record ? (
-                  <View style={styles.weekRecordBlock}>
-                    <Text style={[styles.weekStatusDot, record.status === 'Tardy' ? {color:'#F59E0B'} : {color:'#14B8A6'}]}>●</Text>
-                    <Text style={[styles.weekStatusText, record.status === 'Tardy' ? {color:'#F59E0B'} : {color:'#14B8A6'}]}>
-                      {record.status || 'Present'}
-                    </Text>
-                    <Text style={styles.weekTimeText}>{record.time}</Text>
-                  </View>
-                ) : (
-                  <View style={styles.weekRecordBlock}>
-                    <Text style={{color:'#334155', fontSize:18}}>●</Text>
-                    <Text style={{color:'#475569', fontSize:13, marginLeft:6}}>No record</Text>
-                  </View>
-                )}
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <Text style={[styles.listTime, { marginRight: 8, fontSize: 13 }]}>{rec ? rec.time : '--:--'}</Text>
+                <Text style={[styles.chevron, { fontSize: 20 }]}>›</Text>
               </View>
-            ))}
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={<Text style={styles.emptyText}>No students enrolled.</Text>}
+      />
 
-            {/* All records */}
-            <Text style={[styles.sectionLabel, {marginTop: 24}]}>All Records</Text>
-            {allLogs.length === 0
-              ? <Text style={styles.emptyText}>No records for this student.</Text>
-              : [...allLogs].reverse().map(log => (
-                <View key={log.key} style={styles.listItem}>
-                  <View>
-                    <Text style={styles.listDate}>{log.date}</Text>
-                    <Text style={[styles.statusBadge, log.status === 'Tardy' ? styles.statusTardy : styles.statusPresent]}>
-                      {log.status || 'Present'}
-                    </Text>
-                  </View>
-                  <Text style={styles.listTime}>{log.time}</Text>
-                </View>
-              ))
-            }
-          </ScrollView>
-        );
-      })()}
-
-      {/* Bottom action bar */}
-      {!selectedHistoryStudent && (
-        <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
-            <Text style={styles.exportButtonText}>📤 Export Log</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.clearButton} onPress={clearWeeklyHistory}>
-            <Text style={styles.clearButtonText}>🗑️ Clear</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* ── BOTTOM BAR ── */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity style={styles.exportButton} onPress={handleExport}>
+          <Text style={styles.exportButtonText}>📤 Export Log</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.clearButton} onPress={clearWeeklyHistory}>
+          <Text style={styles.clearButtonText}>🗑️ Clear</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

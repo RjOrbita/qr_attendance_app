@@ -25,26 +25,35 @@ export default function EnrollStudentScreen({ navigation }) {
   };
 
   const handleEnrollStudent = async () => {
-    if (!enrollForm.lrn || !enrollForm.lastName || !enrollForm.firstName || !enrollForm.photoUri) {
-      Alert.alert("Missing Fields", "LRN, Last Name, First Name, and Photo are required.");
+    const cleanedLrn = enrollForm.lrn.trim();
+    if (!cleanedLrn || !enrollForm.lastName || !enrollForm.firstName) {
+      Alert.alert("Missing Fields", "LRN, Last Name, and First Name are required.");
       return;
     }
 
-    if (enrolledStudents.some(s => s.lrn === enrollForm.lrn)) {
+    if (!/^\d{12}$/.test(cleanedLrn)) {
+      Alert.alert("Invalid LRN", "LRN (Learner Reference Number) must be exactly 12 digits.");
+      return;
+    }
+
+    if (enrolledStudents.some(s => s.lrn === cleanedLrn)) {
       Alert.alert("Duplicate LRN", "A student with this LRN is already enrolled.");
       return;
     }
 
     try {
-      // Persist image
-      const filename = enrollForm.photoUri.split('/').pop();
-      const persistentPhotoUri = `${FileSystem.documentDirectory}${filename}`;
-      await FileSystem.copyAsync({
-        from: enrollForm.photoUri,
-        to: persistentPhotoUri
-      });
+      let persistentPhotoUri = null;
+      if (enrollForm.photoUri) {
+        // Persist image
+        const filename = enrollForm.photoUri.split('/').pop();
+        persistentPhotoUri = `${FileSystem.documentDirectory}${filename}`;
+        await FileSystem.copyAsync({
+          from: enrollForm.photoUri,
+          to: persistentPhotoUri
+        });
+      }
 
-      const newStudent = { ...enrollForm, photoUri: persistentPhotoUri };
+      const newStudent = { ...enrollForm, lrn: cleanedLrn, photoUri: persistentPhotoUri };
       const updatedStudents = [...enrolledStudents, newStudent];
       await setEnrolledStudents(updatedStudents);
       
@@ -75,11 +84,22 @@ export default function EnrollStudentScreen({ navigation }) {
           {enrollForm.photoUri ? (
             <Image source={{ uri: enrollForm.photoUri }} style={styles.photoPreview} />
           ) : (
-            <Text style={styles.photoPlaceholder}>Tap to add Photo *</Text>
+            <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ fontSize: 40, color: '#14B8A6' }}>👤</Text>
+              <Text style={[styles.photoPlaceholder, { marginTop: 4, fontSize: 12 }]}>Add Photo (Optional)</Text>
+            </View>
           )}
         </TouchableOpacity>
 
-        <TextInput style={styles.input} placeholder="LRN (Learner Reference Number) *" placeholderTextColor="#64748B" keyboardType="numeric" value={enrollForm.lrn} onChangeText={(t) => setEnrollForm({...enrollForm, lrn: t})} />
+        <TextInput 
+          style={styles.input} 
+          placeholder="LRN (Learner Reference Number) *" 
+          placeholderTextColor="#64748B" 
+          keyboardType="numeric" 
+          maxLength={12}
+          value={enrollForm.lrn} 
+          onChangeText={(t) => setEnrollForm({...enrollForm, lrn: t.replace(/[^0-9]/g, '')})} 
+        />
         <TextInput style={styles.input} placeholder="First Name *" placeholderTextColor="#64748B" value={enrollForm.firstName} onChangeText={(t) => setEnrollForm({...enrollForm, firstName: t})} />
         <TextInput style={styles.input} placeholder="Last Name *" placeholderTextColor="#64748B" value={enrollForm.lastName} onChangeText={(t) => setEnrollForm({...enrollForm, lastName: t})} />
         <View style={styles.row}>

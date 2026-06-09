@@ -1,7 +1,8 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Image, Alert, TextInput } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { globalStyles as styles } from '../theme/styles';
-import { getFormattedName } from '../utils/helpers';
+import { getFormattedName, getInitials } from '../utils/helpers';
 import { AppContext } from '../context/AppContext';
 
 export default function ManageStudentsScreen({ navigation }) {
@@ -19,6 +20,17 @@ export default function ManageStudentsScreen({ navigation }) {
     Alert.alert("Remove Student", "Are you sure you want to remove this student?", [
       { text: "Cancel", style: "cancel" },
       { text: "Remove", style: "destructive", onPress: async () => {
+          const studentToDelete = enrolledStudents.find(s => s.lrn === lrn);
+          if (studentToDelete && studentToDelete.photoUri) {
+            try {
+              const fileInfo = await FileSystem.getInfoAsync(studentToDelete.photoUri);
+              if (fileInfo.exists) {
+                await FileSystem.deleteAsync(studentToDelete.photoUri, { idempotent: true });
+              }
+            } catch (err) {
+              console.error("Failed to delete student photo file:", err);
+            }
+          }
           const updated = enrolledStudents.filter(s => s.lrn !== lrn);
           await setEnrolledStudents(updated);
       }}
@@ -52,7 +64,15 @@ export default function ManageStudentsScreen({ navigation }) {
             style={styles.studentCard}
             onPress={() => navigation.navigate('StudentProfile', { lrn: item.lrn })}
           >
-            <Image source={{ uri: item.photoUri }} style={styles.studentThumb} />
+            {item.photoUri ? (
+              <Image source={{ uri: item.photoUri }} style={styles.studentThumb} />
+            ) : (
+              <View style={[styles.studentThumb, { backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: '#14B8A6', fontSize: 18, fontWeight: 'bold' }}>
+                  {getInitials(item)}
+                </Text>
+              </View>
+            )}
             <View style={styles.studentInfo}>
               <Text style={styles.studentNameText}>{getFormattedName(item)}</Text>
               <Text style={styles.studentLrnText}>LRN: {item.lrn}</Text>

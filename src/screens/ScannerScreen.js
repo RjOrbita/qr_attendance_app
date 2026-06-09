@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Text, View, TouchableOpacity, Animated, Image, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { globalStyles as styles } from '../theme/styles';
-import { getFormattedName, getTodayDate } from '../utils/helpers';
+import { getFormattedName, getTodayDate, getInitials } from '../utils/helpers';
 import { AppContext } from '../context/AppContext';
 
 export default function ScannerScreen({ navigation }) {
@@ -101,7 +101,15 @@ export default function ScannerScreen({ navigation }) {
           {scannedStudent ? (
             // Confirmation Modal
             <View style={styles.confirmCard}>
-              <Image source={{ uri: scannedStudent.photoUri }} style={styles.confirmPhoto} />
+              {scannedStudent.photoUri ? (
+                <Image source={{ uri: scannedStudent.photoUri }} style={styles.confirmPhoto} />
+              ) : (
+                <View style={[styles.confirmPhoto, { backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center', marginTop: 20 }]}>
+                  <Text style={{ color: '#14B8A6', fontSize: 48, fontWeight: 'bold' }}>
+                    {getInitials(scannedStudent)}
+                  </Text>
+                </View>
+              )}
               <View style={styles.confirmDetails}>
                 <View style={{ alignItems: 'center' }}>
                   <Text style={styles.confirmName}>{getFormattedName(scannedStudent)}</Text>
