@@ -55,6 +55,53 @@ export default function HistoryScreen({ navigation }) {
     }
   };
 
+  const toggleManualAttendance = (student) => {
+    const rec = student.attendanceRecord;
+    const studentName = getFormattedName(student);
+    
+    Alert.alert(
+      "Manual Attendance",
+      `Update attendance for ${studentName} on ${formatDateHeader(currentDate)}:`,
+      [
+        { 
+          text: "Mark Present", 
+          onPress: () => saveManualStatus(student.lrn, studentName, 'Present') 
+        },
+        { 
+          text: "Mark Tardy", 
+          onPress: () => saveManualStatus(student.lrn, studentName, 'Tardy') 
+        },
+        { 
+          text: "Mark Absent (Remove)", 
+          style: "destructive",
+          onPress: () => saveManualStatus(student.lrn, studentName, 'Absent') 
+        },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
+  const saveManualStatus = async (lrn, name, status) => {
+    let updatedLogs = [...masterLog];
+    // Filter out existing logs for this student on this date
+    updatedLogs = updatedLogs.filter(l => !(l.id === lrn && l.date === isoCurrentDate));
+    
+    if (status !== 'Absent') {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const newLog = {
+        id: lrn,
+        name,
+        time: timeStr,
+        date: isoCurrentDate,
+        status,
+        key: `${lrn}-${Date.now()}`
+      };
+      updatedLogs.push(newLog);
+    }
+    
+    await setMasterLog(updatedLogs);
+  };
+
   const listData = useMemo(() => {
     return enrolledStudents
       .map(student => {
@@ -141,9 +188,17 @@ export default function HistoryScreen({ navigation }) {
             >
               <View style={{flex: 1}}>
                 <Text style={[styles.listName, { fontSize: 15 }]}>{getFormattedName(item)}</Text>
-                <Text style={[styles.statusBadge, statusStyle, { marginTop: 4 }]}>
-                  {status}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                  <Text style={[styles.statusBadge, statusStyle, { marginTop: 0 }]}>
+                    {status}
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => toggleManualAttendance(item)}
+                    style={{ marginLeft: 10, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155' }}
+                  >
+                    <Text style={{ color: '#14B8A6', fontSize: 11, fontWeight: 'bold' }}>✎ Edit</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <Text style={[styles.listTime, { marginRight: 8, fontSize: 13 }]}>{rec ? rec.time : '--:--'}</Text>
