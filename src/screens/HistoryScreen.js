@@ -1,14 +1,14 @@
 import React, { useState, useContext, useMemo } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Alert, Platform, StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { globalStyles as styles } from '../theme/styles';
 import { getFormattedName } from '../utils/helpers';
-import { exportWeeklyAttendance } from '../services/exportService';
+import { exportMonthlyAttendance } from '../services/exportService';
 import { clearLogs as clearStorageLogs } from '../services/storageService';
 import { AppContext } from '../context/AppContext';
 
 export default function HistoryScreen({ navigation }) {
-  const { masterLog, setMasterLog, enrolledStudents } = useContext(AppContext);
+  const { masterLog, setMasterLog, enrolledStudents, nonSchoolDays, setNonSchoolDays } = useContext(AppContext);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -26,7 +26,6 @@ export default function HistoryScreen({ navigation }) {
     return weekdays[d.getDay()];
   };
 
-  // Helper to get ISO date string (YYYY-MM-DD) for matching with masterLog
   const getIsoDateString = (d) => {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -35,6 +34,16 @@ export default function HistoryScreen({ navigation }) {
   };
 
   const isoCurrentDate = getIsoDateString(currentDate);
+
+  const anyLogsToday = useMemo(() => masterLog.some(l => l.date === isoCurrentDate), [masterLog, isoCurrentDate]);
+  const nsdEntry = useMemo(() => nonSchoolDays.find(d => d.date === isoCurrentDate), [nonSchoolDays, isoCurrentDate]);
+  
+  let dayStatus = 'Regular Class Day';
+  if (nsdEntry) {
+    dayStatus = nsdEntry.reason;
+  } else if ((currentDate.getDay() === 0 || currentDate.getDay() === 6) && !anyLogsToday) {
+    dayStatus = 'Weekend';
+  }
 
   const incrementDate = () => {
     const newDate = new Date(currentDate);
@@ -53,6 +62,43 @@ export default function HistoryScreen({ navigation }) {
     if (selectedDate) {
       setCurrentDate(selectedDate);
     }
+  };
+
+  const getDayStatusColor = (status) => {
+    switch (status) {
+      case 'Regular Class Day':
+        return '#14B8A6'; // Teal
+      case 'Holiday':
+        return '#F59E0B'; // Amber
+      case 'Class Suspended':
+        return '#EF4444'; // Red
+      case 'Weekend':
+        return '#94A3B8'; // Gray
+      default:
+        return '#FFF';
+    }
+  };
+
+  const toggleDayStatus = () => {
+    Alert.alert(
+      "Set Day Status",
+      `Mark ${formatDateHeader(currentDate)} as:`,
+      [
+        { text: "Regular Class Day", onPress: () => updateDayStatus('Regular Class Day') },
+        { text: "Holiday", onPress: () => updateDayStatus('Holiday') },
+        { text: "Class Suspended", onPress: () => updateDayStatus('Class Suspended') },
+        { text: "Cancel", style: "cancel" }
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const updateDayStatus = async (status) => {
+    let updatedNsd = nonSchoolDays.filter(d => d.date !== isoCurrentDate);
+    if (status !== 'Regular Class Day') {
+      updatedNsd.push({ date: isoCurrentDate, reason: status });
+    }
+    await setNonSchoolDays(updatedNsd);
   };
 
   const toggleManualAttendance = (student) => {
@@ -77,7 +123,8 @@ export default function HistoryScreen({ navigation }) {
           onPress: () => saveManualStatus(student.lrn, studentName, 'Absent') 
         },
         { text: "Cancel", style: "cancel" }
-      ]
+      ],
+      { cancelable: true }
     );
   };
 
@@ -115,7 +162,7 @@ export default function HistoryScreen({ navigation }) {
   }, [enrolledStudents, masterLog, isoCurrentDate]);
 
   const handleExport = () => {
-    exportWeeklyAttendance(masterLog);
+    exportMonthlyAttendance(currentDate, masterLog, enrolledStudents, nonSchoolDays);
   };
 
   const clearWeeklyHistory = () => {
@@ -132,27 +179,57 @@ export default function HistoryScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* ── HEADER ── */}
-      <View style={styles.headerArea}>
+      <View style={[styles.headerArea, { paddingBottom: 15 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>{'< Back to Scanner'}</Text>
         </TouchableOpacity>
         <Text style={styles.titleText}>Attendance Log</Text>
-      </View>
 
-      {/* ── DATE SELECTOR ── */}
-      <View style={styles.datePaginator}>
-        <TouchableOpacity style={styles.pageArrow} onPress={decrementDate}>
-          <Text style={styles.pageArrowText}>‹</Text>
-        </TouchableOpacity>
+        {/* Date Selector Row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 15 }}>
+          <TouchableOpacity 
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' }} 
+            onPress={decrementDate}
+          >
+            <Text style={{ color: '#14B8A6', fontSize: 24, fontWeight: 'bold', lineHeight: 28 }}>‹</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.dateDisplay} onPress={() => setShowDatePicker(true)}>
-          <Text style={styles.dateDisplayText}>{formatDateHeader(currentDate)}</Text>
-          <Text style={styles.dateRecordCount}>{formatDayOfWeek(currentDate)}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={{ alignItems: 'center' }} onPress={() => setShowDatePicker(true)}>
+            <Text style={{ color: '#FFF', fontSize: 20, fontWeight: 'bold' }}>{formatDateHeader(currentDate)}</Text>
+            <Text style={{ color: '#14B8A6', fontSize: 13, marginTop: 2 }}>{formatDayOfWeek(currentDate)}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.pageArrow} onPress={incrementDate}>
-          <Text style={styles.pageArrowText}>›</Text>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#334155' }} 
+            onPress={incrementDate}
+          >
+            <Text style={{ color: '#14B8A6', fontSize: 24, fontWeight: 'bold', lineHeight: 28 }}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Day Status selector under date selector */}
+        <View style={{ alignItems: 'center', marginTop: 15 }}>
+          <TouchableOpacity 
+            onPress={toggleDayStatus} 
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 12,
+              backgroundColor: '#0F172A',
+              borderWidth: 1,
+              borderColor: dayStatus === 'Regular Class Day' ? '#334155' : getDayStatusColor(dayStatus)
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: 'bold', color: getDayStatusColor(dayStatus) }}>
+              {dayStatus === 'Regular Class Day' ? '📅 Regular Class Day' : 
+               dayStatus === 'Holiday' ? '🏖️ Holiday' : 
+               dayStatus === 'Class Suspended' ? '🚫 Suspended' : `🛋️ ${dayStatus}`}
+            </Text>
+            <Text style={{ color: '#94A3B8', fontSize: 10 }}>  ▼</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {showDatePicker && (
@@ -175,11 +252,17 @@ export default function HistoryScreen({ navigation }) {
         removeClippedSubviews={Platform.OS === 'android'}
         renderItem={({item}) => {
           const rec = item.attendanceRecord;
-          const status = rec ? (rec.status || 'Present') : 'Absent';
+          let status = 'Absent';
+          if (rec) {
+            status = rec.status || 'Present';
+          } else if (dayStatus !== 'Regular Class Day') {
+            status = dayStatus;
+          }
           
           let statusStyle = styles.statusPresent;
           if (status === 'Tardy') statusStyle = styles.statusTardy;
-          if (status === 'Absent') statusStyle = { ...styles.statusBadge, backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)' };
+          else if (status === 'Absent') statusStyle = { ...styles.statusBadge, backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)' };
+          else if (status !== 'Present') statusStyle = { ...styles.statusBadge, backgroundColor: 'rgba(100, 116, 139, 0.2)', color: '#94A3B8', borderColor: 'rgba(100, 116, 139, 0.3)' };
 
           return (
             <TouchableOpacity 
@@ -222,3 +305,4 @@ export default function HistoryScreen({ navigation }) {
     </View>
   );
 }
+

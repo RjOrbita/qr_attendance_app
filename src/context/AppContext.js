@@ -1,11 +1,12 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { loadData, saveLogs, saveStudents } from '../services/storageService';
+import { loadData, saveLogs, saveStudents, saveNonSchoolDays } from '../services/storageService';
 
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const [masterLog, setMasterLogState] = useState([]);
   const [enrolledStudents, setEnrolledStudentsState] = useState([]);
+  const [nonSchoolDays, setNonSchoolDaysState] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -13,9 +14,10 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   const initializeData = async () => {
-    const { logs, students } = await loadData();
+    const { logs, students, nonSchoolDays: nsd } = await loadData();
     setMasterLogState(logs);
     setEnrolledStudentsState(students);
+    setNonSchoolDaysState(nsd || []);
     setIsLoading(false);
   };
 
@@ -27,6 +29,11 @@ export const AppProvider = ({ children }) => {
   const setEnrolledStudents = async (newStudents) => {
     setEnrolledStudentsState(newStudents);
     await saveStudents(newStudents);
+  };
+
+  const setNonSchoolDays = async (newDays) => {
+    setNonSchoolDaysState(newDays);
+    await saveNonSchoolDays(newDays);
   };
 
   const updateStudentProfile = async (lrn, updatedData) => {
@@ -45,6 +52,8 @@ export const AppProvider = ({ children }) => {
       setMasterLog,
       enrolledStudents,
       setEnrolledStudents,
+      nonSchoolDays,
+      setNonSchoolDays,
       updateStudentProfile,
       isLoading
     }}>

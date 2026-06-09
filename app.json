@@ -1,16 +1,27 @@
 {
   "expo": {
-    "name": "classroom-scanner",
-    "slug": "classroom-scanner",
+    "name": "QRoster",
+    "slug": "qroster",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0F172A",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/icon.png"
     },
     "android": {
       "package": "com.roland.classroomscanner",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#0F172A"
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"

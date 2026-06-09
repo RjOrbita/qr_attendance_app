@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LOGS_KEY = 'classroom_attendance_master';
 const STUDENTS_KEY = 'enrolled_students';
+const NON_SCHOOL_DAYS_KEY = 'classroom_non_school_days';
 
 export const loadData = async () => {
   try {
@@ -11,10 +12,13 @@ export const loadData = async () => {
     const savedStudents = await AsyncStorage.getItem(STUDENTS_KEY);
     const parsedStudents = savedStudents ? JSON.parse(savedStudents) : [];
     
-    return { logs: parsedLogs, students: parsedStudents };
+    const savedNonSchoolDays = await AsyncStorage.getItem(NON_SCHOOL_DAYS_KEY);
+    const parsedNonSchoolDays = savedNonSchoolDays ? JSON.parse(savedNonSchoolDays) : [];
+    
+    return { logs: parsedLogs, students: parsedStudents, nonSchoolDays: parsedNonSchoolDays };
   } catch (err) {
     console.error("Error loading data:", err);
-    return { logs: [], students: [] };
+    return { logs: [], students: [], nonSchoolDays: [] };
   }
 };
 
@@ -31,6 +35,14 @@ export const saveStudents = async (students) => {
     await AsyncStorage.setItem(STUDENTS_KEY, JSON.stringify(students));
   } catch (err) {
     console.error("Error saving students:", err);
+  }
+};
+
+export const saveNonSchoolDays = async (days) => {
+  try {
+    await AsyncStorage.setItem(NON_SCHOOL_DAYS_KEY, JSON.stringify(days));
+  } catch (err) {
+    console.error("Error saving non school days:", err);
   }
 };
 
