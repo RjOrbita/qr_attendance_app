@@ -120,6 +120,10 @@ export default function HistoryScreen({ navigation }) {
         data={listData}
         keyExtractor={(item) => item.lrn}
         contentContainerStyle={styles.listContainer}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         renderItem={({item}) => {
           const rec = item.attendanceRecord;
           const status = rec ? (rec.status || 'Present') : 'Absent';

@@ -16,7 +16,7 @@ export default function EnrollStudentScreen({ navigation }) {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 0.6,
     });
 
     if (!result.canceled) {

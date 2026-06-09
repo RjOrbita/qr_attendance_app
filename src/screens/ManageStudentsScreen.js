@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Image, Alert, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Image, Alert, TextInput, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { globalStyles as styles } from '../theme/styles';
 import { getFormattedName, getInitials } from '../utils/helpers';
@@ -59,6 +59,10 @@ export default function ManageStudentsScreen({ navigation }) {
         data={filteredStudents} 
         keyExtractor={(item) => item.lrn}
         contentContainerStyle={styles.listContainer}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         renderItem={({item}) => (
           <TouchableOpacity 
             style={styles.studentCard}

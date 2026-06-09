@@ -77,7 +77,7 @@ export default function StudentProfileScreen({ route, navigation }) {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 0.6,
     });
 
     if (!result.canceled) {
@@ -467,6 +467,10 @@ export default function StudentProfileScreen({ route, navigation }) {
             }
             keyExtractor={(item) => item.key}
             contentContainerStyle={[styles.infoSection, { paddingTop: 15 }]}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'android'}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
                 {selectedMonth ? "No attendance records for this month." : "No attendance records found."}
