@@ -9,12 +9,14 @@ export default function ManageStudentsScreen({ navigation }) {
   const { enrolledStudents, setEnrolledStudents } = useContext(AppContext);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredStudents = enrolledStudents.filter(student => {
-    const query = searchQuery.toLowerCase();
-    const fullName = getFormattedName(student).toLowerCase();
-    const lrn = String(student.lrn).toLowerCase();
-    return fullName.includes(query) || lrn.includes(query);
-  });
+  const filteredStudents = enrolledStudents
+    .filter(student => {
+      const query = searchQuery.toLowerCase();
+      const fullName = getFormattedName(student).toLowerCase();
+      const lrn = String(student.lrn).toLowerCase();
+      return fullName.includes(query) || lrn.includes(query);
+    })
+    .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
   const deleteStudent = (lrn) => {
     Alert.alert("Remove Student", "Are you sure you want to remove this student?", [

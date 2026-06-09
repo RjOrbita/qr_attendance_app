@@ -56,13 +56,15 @@ export default function HistoryScreen({ navigation }) {
   };
 
   const listData = useMemo(() => {
-    return enrolledStudents.map(student => {
-      const record = masterLog.find(l => l.id === student.lrn && l.date === isoCurrentDate);
-      return {
-        ...student,
-        attendanceRecord: record || null
-      };
-    });
+    return enrolledStudents
+      .map(student => {
+        const record = masterLog.find(l => l.id === student.lrn && l.date === isoCurrentDate);
+        return {
+          ...student,
+          attendanceRecord: record || null
+        };
+      })
+      .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
   }, [enrolledStudents, masterLog, isoCurrentDate]);
 
   const handleExport = () => {
