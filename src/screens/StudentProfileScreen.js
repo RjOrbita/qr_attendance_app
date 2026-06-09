@@ -30,7 +30,7 @@ const formatHistoryDate = (dateStr) => {
 
 export default function StudentProfileScreen({ route, navigation }) {
   const { lrn, initialTab } = route.params;
-  const { enrolledStudents, updateStudentProfile, masterLog } = useContext(AppContext);
+  const { enrolledStudents, updateStudentProfile, masterLog, nonSchoolDays } = useContext(AppContext);
   
   const [student, setStudent] = useState(null);
   const [activeTab, setActiveTab] = useState(initialTab || 'Information');
@@ -46,6 +46,7 @@ export default function StudentProfileScreen({ route, navigation }) {
     address: '',
     fatherName: '',
     motherMaidenName: '',
+    phone: '',
     photoUri: null
   });
 
@@ -59,6 +60,7 @@ export default function StudentProfileScreen({ route, navigation }) {
         address: found.address || '',
         fatherName: found.fatherName || '',
         motherMaidenName: found.motherMaidenName || '',
+        phone: found.phone || '',
         photoUri: found.photoUri || null
       });
 
@@ -313,11 +315,17 @@ export default function StudentProfileScreen({ route, navigation }) {
     const presentCount = studentScansInMonth.filter(log => (log.status || 'Present') === 'Present').length;
     const tardyCount = studentScansInMonth.filter(log => log.status === 'Tardy').length;
     
-    // School days in this month (any date in masterLog for this month)
+    // School days in this month (any date in masterLog for this month, excluding holidays/suspensions)
     const schoolDaysInMonth = [...new Set(masterLog
       .filter(log => log.date.startsWith(selectedMonth))
       .map(log => log.date)
-    )];
+    )].filter(dateStr => {
+      const nsdEntry = nonSchoolDays?.find(n => n.date === dateStr);
+      if (nsdEntry && (nsdEntry.reason === 'Holiday' || nsdEntry.reason === 'Class Suspended')) {
+        return false;
+      }
+      return true;
+    });
     
     const studentScannedDates = new Set(studentScansInMonth.map(log => log.date));
     const absentCount = schoolDaysInMonth.filter(date => !studentScannedDates.has(date)).length;
@@ -443,6 +451,7 @@ export default function StudentProfileScreen({ route, navigation }) {
             {renderInfoField('Address', 'address')}
             {renderInfoField('Father\'s Name', 'fatherName')}
             {renderInfoField('Mother\'s Maiden Name', 'motherMaidenName')}
+            {renderInfoField('Emergency Contact', 'phone', 'phone-pad')}
           </ScrollView>
           
           {isEditing ? (

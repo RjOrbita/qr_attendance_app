@@ -106,7 +106,7 @@ export default function EnrollStudentScreen({ navigation }) {
           <TextInput style={[styles.input, {flex: 1, marginRight: 10}]} placeholder="M.I. (Optional)" placeholderTextColor="#64748B" maxLength={2} value={enrollForm.middleInitial} onChangeText={(t) => setEnrollForm({...enrollForm, middleInitial: t})} />
           <TextInput style={[styles.input, {flex: 1}]} placeholder="Suffix (Optional)" placeholderTextColor="#64748B" value={enrollForm.suffix} onChangeText={(t) => setEnrollForm({...enrollForm, suffix: t})} />
         </View>
-        <TextInput style={styles.input} placeholder="Guardian Phone Number" placeholderTextColor="#64748B" keyboardType="phone-pad" value={enrollForm.phone} onChangeText={(t) => setEnrollForm({...enrollForm, phone: t})} />
+        <TextInput style={styles.input} placeholder="Guardian Phone Number (Optional)" placeholderTextColor="#64748B" keyboardType="phone-pad" value={enrollForm.phone} onChangeText={(t) => setEnrollForm({...enrollForm, phone: t})} />
 
         <TouchableOpacity style={styles.saveButton} onPress={handleEnrollStudent}>
           <Text style={styles.saveButtonText}>Save Student</Text>

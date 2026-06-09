@@ -38,8 +38,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "db5b8115-4021-42de-8d1f-a72b3c355a34"
+        "projectId": "fdf8e191-547e-488a-8dcc-b4f72c12a2de"
       }
-    }
+    },
+    "owner": "orbzzofficial"
   }
 }
