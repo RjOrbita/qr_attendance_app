@@ -128,9 +128,9 @@ export const globalStyles = StyleSheet.create({
   // ── Student Profile Feature ──
   profileHeaderContainer: { alignItems: 'center', backgroundColor: '#1E293B', paddingVertical: 25, borderBottomWidth: 1, borderBottomColor: '#334155' },
   profileLargeAvatar: { width: 110, height: 110, borderRadius: 55, borderWidth: 3, borderColor: '#14B8A6', marginBottom: 15 },
-  profileNameLabel: { fontSize: 24, fontWeight: 'bold', color: '#FFF' },
-  profileLrnLabel: { fontSize: 16, color: '#94A3B8', marginTop: 4 },
-  profileContactLabel: { fontSize: 14, color: '#14B8A6', marginTop: 8, fontWeight: '600' },
+  profileNameLabel: { fontSize: 24, fontWeight: 'bold', color: '#FFF', textAlign: 'center', paddingHorizontal: 20 },
+  profileLrnLabel: { fontSize: 16, color: '#94A3B8', marginTop: 4, textAlign: 'center' },
+  profileContactLabel: { fontSize: 14, color: '#14B8A6', marginTop: 8, fontWeight: '600', textAlign: 'center' },
   
   tabSwitcherRow: { flexDirection: 'row', backgroundColor: '#0F172A', padding: 10 },
   tabButtonActive: { flex: 1, paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: '#14B8A6', alignItems: 'center' },

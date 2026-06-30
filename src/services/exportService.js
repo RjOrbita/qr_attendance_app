@@ -67,7 +67,7 @@ export const exportMonthlyAttendance = async (currentDate, masterLog, enrolledSt
   let rowsString = '';
   sortedStudents.forEach(student => {
     const suffix = student.suffix ? ` ${student.suffix}` : '';
-    const mi = student.middleInitial ? `, ${student.middleInitial}` : '';
+    const mi = student.middleInitial ? ` ${student.middleInitial}` : '';
     const exportName = `${student.lastName}${suffix}, ${student.firstName}${mi}`;
     let row = `"${student.lrn}","${exportName}",`;
     
