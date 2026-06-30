@@ -257,29 +257,40 @@ export default function ManageStudentsScreen({ navigation }) {
         maxToRenderPerBatch={10}
         windowSize={5}
         removeClippedSubviews={Platform.OS === 'android'}
-        renderItem={({item}) => (
-          <TouchableOpacity 
-            style={styles.studentCard}
-            onPress={() => navigation.navigate('StudentProfile', { lrn: item.lrn })}
-          >
-            {item.photoUri ? (
-              <Image source={{ uri: item.photoUri }} style={styles.studentThumb} />
-            ) : (
-              <View style={[styles.studentThumb, { backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center' }]}>
-                <Text style={{ color: '#14B8A6', fontSize: 18, fontWeight: 'bold' }}>
-                  {getInitials(item)}
+        renderItem={({item, index}) => {
+          const showHeader = index === 0 || item.sex !== filteredStudents[index - 1].sex;
+          const genderTitle = item.sex === 'Male' ? 'Male Students' : item.sex === 'Female' ? 'Female Students' : 'Other / Not Specified';
+          return (
+            <View>
+              {showHeader && (
+                <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700', letterSpacing: 1, marginTop: index === 0 ? 4 : 18, marginBottom: 8, marginLeft: 4, textTransform: 'uppercase' }}>
+                  {genderTitle}
                 </Text>
-              </View>
-            )}
-            <View style={styles.studentInfo}>
-              <Text style={styles.studentNameText}>{getFormattedName(item)}</Text>
-              <Text style={styles.studentLrnText}>LRN: {item.lrn}</Text>
+              )}
+              <TouchableOpacity 
+                style={styles.studentCard}
+                onPress={() => navigation.navigate('StudentProfile', { lrn: item.lrn })}
+              >
+                {item.photoUri ? (
+                  <Image source={{ uri: item.photoUri }} style={styles.studentThumb} />
+                ) : (
+                  <View style={[styles.studentThumb, { backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={{ color: '#14B8A6', fontSize: 18, fontWeight: 'bold' }}>
+                      {getInitials(item)}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.studentInfo}>
+                  <Text style={styles.studentNameText}>{getFormattedName(item)}</Text>
+                  <Text style={styles.studentLrnText}>LRN: {item.lrn}</Text>
+                </View>
+                <TouchableOpacity onPress={() => deleteStudent(item.lrn)}>
+                  <Text style={styles.deleteIcon}>❌</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => deleteStudent(item.lrn)}>
-              <Text style={styles.deleteIcon}>❌</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        )}
+          );
+        }}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
             {searchQuery ? "No matching students found." : "No students enrolled yet."}

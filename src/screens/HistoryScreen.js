@@ -268,7 +268,10 @@ export default function HistoryScreen({ navigation }) {
         maxToRenderPerBatch={10}
         windowSize={5}
         removeClippedSubviews={Platform.OS === 'android'}
-        renderItem={({item}) => {
+        renderItem={({item, index}) => {
+          const showHeader = index === 0 || item.sex !== listData[index - 1].sex;
+          const genderTitle = item.sex === 'Male' ? 'Male Students' : item.sex === 'Female' ? 'Female Students' : 'Other / Not Specified';
+
           const rec = item.attendanceRecord;
           let status = 'Absent';
           if (rec) {
@@ -283,29 +286,36 @@ export default function HistoryScreen({ navigation }) {
           else if (status !== 'Present') statusStyle = { ...styles.statusBadge, backgroundColor: 'rgba(100, 116, 139, 0.2)', color: '#94A3B8', borderColor: 'rgba(100, 116, 139, 0.3)' };
 
           return (
-            <TouchableOpacity 
-              style={[styles.listItem, { paddingVertical: 10, paddingHorizontal: 15, marginBottom: 8 }]}
-              onPress={() => navigation.navigate('StudentProfile', { lrn: item.lrn, initialTab: 'History' })}
-            >
-              <View style={{flex: 1}}>
-                <Text style={[styles.listName, { fontSize: 15 }]}>{getFormattedName(item)}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                  <Text style={[styles.statusBadge, statusStyle, { marginTop: 0 }]}>
-                    {status}
-                  </Text>
-                  <TouchableOpacity 
-                    onPress={() => toggleManualAttendance(item)}
-                    style={{ marginLeft: 10, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155' }}
-                  >
-                    <Text style={{ color: '#14B8A6', fontSize: 11, fontWeight: 'bold' }}>✎ Edit</Text>
-                  </TouchableOpacity>
+            <View>
+              {showHeader && (
+                <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: '700', letterSpacing: 1, marginTop: index === 0 ? 4 : 18, marginBottom: 8, marginLeft: 4, textTransform: 'uppercase' }}>
+                  {genderTitle}
+                </Text>
+              )}
+              <TouchableOpacity 
+                style={[styles.listItem, { paddingVertical: 10, paddingHorizontal: 15, marginBottom: 8 }]}
+                onPress={() => navigation.navigate('StudentProfile', { lrn: item.lrn, initialTab: 'History' })}
+              >
+                <View style={{flex: 1}}>
+                  <Text style={[styles.listName, { fontSize: 15 }]}>{getFormattedName(item)}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                    <Text style={[styles.statusBadge, statusStyle, { marginTop: 0 }]}>
+                      {status}
+                    </Text>
+                    <TouchableOpacity 
+                      onPress={() => toggleManualAttendance(item)}
+                      style={{ marginLeft: 10, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#334155' }}
+                    >
+                      <Text style={{ color: '#14B8A6', fontSize: 11, fontWeight: 'bold' }}>✎ Edit</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                <Text style={[styles.listTime, { marginRight: 8, fontSize: 13 }]}>{rec ? rec.time : '--:--'}</Text>
-                <Text style={[styles.chevron, { fontSize: 20 }]}>›</Text>
-              </View>
-            </TouchableOpacity>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <Text style={[styles.listTime, { marginRight: 8, fontSize: 13 }]}>{rec ? rec.time : '--:--'}</Text>
+                  <Text style={[styles.chevron, { fontSize: 20 }]}>›</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           );
         }}
         ListEmptyComponent={<Text style={styles.emptyText}>No students enrolled.</Text>}
