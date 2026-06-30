@@ -160,7 +160,23 @@ export default function HistoryScreen({ navigation }) {
           attendanceRecord: record || null
         };
       })
-      .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+      .sort((a, b) => {
+        const genderA = a.sex || 'Unknown';
+        const genderB = b.sex || 'Unknown';
+        const getGenderOrder = (g) => {
+          if (g === 'Male') return 1;
+          if (g === 'Female') return 2;
+          return 3;
+        };
+        const orderA = getGenderOrder(genderA);
+        const orderB = getGenderOrder(genderB);
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        const surnameCompare = (a.lastName || '').localeCompare(b.lastName || '', undefined, { sensitivity: 'base' });
+        if (surnameCompare !== 0) return surnameCompare;
+        return (a.firstName || '').localeCompare(b.firstName || '', undefined, { sensitivity: 'base' });
+      });
   }, [enrolledStudents, masterLog, isoCurrentDate]);
 
   const handleExport = () => {

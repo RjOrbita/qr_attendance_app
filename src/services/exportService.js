@@ -46,7 +46,23 @@ export const exportMonthlyAttendance = async (currentDate, masterLog, enrolledSt
   });
 
   // 3. Construct rows for each student
-  const sortedStudents = [...enrolledStudents].sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+  const sortedStudents = [...enrolledStudents].sort((a, b) => {
+    const genderA = a.sex || 'Unknown';
+    const genderB = b.sex || 'Unknown';
+    const getGenderOrder = (g) => {
+      if (g === 'Male') return 1;
+      if (g === 'Female') return 2;
+      return 3;
+    };
+    const orderA = getGenderOrder(genderA);
+    const orderB = getGenderOrder(genderB);
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    const surnameCompare = (a.lastName || '').localeCompare(b.lastName || '', undefined, { sensitivity: 'base' });
+    if (surnameCompare !== 0) return surnameCompare;
+    return (a.firstName || '').localeCompare(b.firstName || '', undefined, { sensitivity: 'base' });
+  });
   
   let rowsString = '';
   sortedStudents.forEach(student => {

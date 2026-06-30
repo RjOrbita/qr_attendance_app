@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Text, View, TouchableOpacity, Animated, Image, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Audio } from 'expo-av';
 import { globalStyles as styles } from '../theme/styles';
 import { getFormattedName, getTodayDate, getInitials } from '../utils/helpers';
 import { AppContext } from '../context/AppContext';
@@ -15,6 +16,7 @@ export default function ScannerScreen({ navigation }) {
   const [isScanningActive, setIsScanningActive] = useState(true);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const soundRef = useRef(null);
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -30,6 +32,36 @@ export default function ScannerScreen({ navigation }) {
       ])
     ).start();
   }, [pulseAnim]);
+
+  useEffect(() => {
+    const loadSound = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require('../../assets/ding.mp3')
+        );
+        soundRef.current = sound;
+      } catch (e) {
+        console.log("Error loading ding sound:", e);
+      }
+    };
+    loadSound();
+
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  const playDingSound = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.replayAsync();
+      }
+    } catch (e) {
+      console.log("Error playing ding sound:", e);
+    }
+  };
 
   const handleBarCodeScanned = ({ data }) => {
     const scannedLrn = data.trim();
@@ -54,6 +86,9 @@ export default function ScannerScreen({ navigation }) {
       );
       return;
     }
+
+    // Play successful scan sound
+    playDingSound();
 
     // Trigger confirmation modal
     setSelectedStatus('Present');
